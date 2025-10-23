@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videos with Time Limit</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #currentItemContainer {
+            border: 2px solid #000;
+            padding: 10px;
+            width: 90%;
+            background-color: #f9f9f9;
+            margin-top: 20px;
+        }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        video {
+            width: 200px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: gray;
+            text-align: center;
+        }
+        .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 24px;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 20px auto;
+        }
+        #videoList {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .date-separator {
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Videos with 5-Minute Time Limit</h1>
+    <input type="file" id="myFileInput" multiple accept="video/mp4">
+    
+    <h2>Current Item (Visible for 5 minutes):</h2>
+    <div id="currentItemContainer"></div>
+
+    <h2>Video Previews:</h2>
+    <div id="videoList"></div>
+
+    <script>
+        const dbName = "videoStorage";
+        let db;
+        let lastUploadDate = null; // Store the last date when a video was added
+        
+        // Open or create IndexedDB
+        const request = indexedDB.open(dbName, 1);
+        request.onupgradeneeded = function (event) {
+            db = event.target.result;
+            if (!db.objectStoreNames.contains('videos')) {
+                db.createObjectStore('videos', { keyPath: 'id' });
+            }
+        };
+        request.onsuccess = function (event) {
+            db = event.target.result;
+            loadVideosFromDB(); // Load existing videos when the database opens
+        };
+        request.onerror = function () {
+            console.error("IndexedDB error");
+        };
+
+        // Handle file input change event for videos
+        document.querySelector("#myFileInput").addEventListener("change", function () {
+            const files = this.files;
+            const currentTime = new Date().toLocaleString();
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = function () {
+                    if (file.type.startsWith('video/')) {
+                        // For videos, save to IndexedDB and display preview
+                        const transaction = db.transaction(['videos'], 'readwrite');
+                        const store = transaction.objectStore('videos');
+
+                        const videoData = {
+                            id: `video-${Date.now() + i}`,
+                            data: reader.result, // Video data in Base64
+                            name: file.name,
+                            timestamp: currentTime
+                        };
+
+                        store.put(videoData);
+                        transaction.oncomplete = function () {
+                            addVideoToUI(videoData);
+                            displayCurrentVideo(videoData.id, videoData.data, videoData.timestamp);
+                        };
+                        transaction.onerror = function () {
+                            console.error("Error saving video");
+                        };
+                    }
+                };
+
+                reader.readAsDataURL(file); // Read the video file as a Base64 string
+            }
+        });
+
+        // Helper function to display current video item in the 'currentItemContainer'
+        function displayCurrentVideo(videoId, videoUrl, timestamp) {
+            const currentItemContainer = document.getElementById("currentItemContainer");
+            const videoContainer = document.createElement("div");
+            videoContainer.classList.add("video-container");
+            videoContainer.dataset.id = videoId; // Store video ID
+
+            const videoPreview = document.createElement("video");
+            videoPreview.setAttribute("src", videoUrl);
+            videoPreview.setAttribute("controls", "true");
+
+            const timeStampDiv = document.createElement("div");
+            timeStampDiv.classList.add("timestamp");
+            timeStampDiv.innerText = `Uploaded on: ${timestamp}`;
+
+            // Create delete button
+            const deleteBtn = document.createElement("button");
+            deleteBtn.classList.add("delete-button");
+            deleteBtn.innerText = "X";
+            deleteBtn.addEventListener("click", () => {
+                deleteVideo(videoId);
+            });
+
+            videoContainer.appendChild(videoPreview);
+            videoContainer.appendChild(timeStampDiv);
+            videoContainer.appendChild(deleteBtn);
+            currentItemContainer.appendChild(videoContainer);
+
+            // Remove current item after 5 minutes
+            setTimeout(() => {
+                videoContainer.remove();
+            }, 300000); // 5 minutes = 300000ms
+        }
+
+        // Load videos from IndexedDB and check for current items
+        function loadVideosFromDB() {
+            const transaction = db.transaction(['videos'], 'readonly');
+            const store = transaction.objectStore('videos');
+            const request = store.openCursor();
+
+            request.onsuccess = function (event) {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const videoData = cursor.value;
+                    const currentTime = new Date().getTime();
+                    const videoUploadTime = new Date(videoData.timestamp).getTime();
+                    
+                    // Check if video was uploaded less than 5 minutes ago (300000 milliseconds)
+                    if ((currentTime - videoUploadTime) < 300000) {
+                        // Display video in the current item container
+                        displayCurrentVideo(videoData.id, videoData.data, videoData.timestamp);
+                    }
+                    
+                    // Display video in the regular video list
+                    addVideoToUI(videoData);
+                    cursor.continue();
+                }
+            };
+
+            request.onerror = function () {
+                console.error("Error retrieving videos");
+            };
+        }
+
+        // Helper function to add a video to the UI
+        function addVideoToUI(videoData) {
+            const videoList = document.getElementById("videoList");
+            const videoDate = new Date(videoData.timestamp).toLocaleDateString();
+
+            // Insert date separator if the video is uploaded on a new date
+            if (lastUploadDate !== videoDate) {
+                const dateSeparator = document.createElement("div");
+                dateSeparator.classList.add("date-separator");
+                dateSeparator.innerText = `Uploaded on: ${videoDate}`;
+                videoList.appendChild(dateSeparator);
+                lastUploadDate = videoDate; // Update the lastUploadDate
+            }
+
+            const videoContainer = document.createElement("div");
+            videoContainer.classList.add("video-container");
+            videoContainer.dataset.id = videoData.id; // Store video ID
+
+            videoContainer.innerHTML = `
+                <video controls width="200" src="${videoData.data}"></video>
+                <p>${videoData.name}</p>
+                <div class="timestamp">Uploaded on: ${videoData.timestamp}</div>
+                <button class="delete-button" data-id="${videoData.id}">Delete</button>
+            `;
+
+            videoList.appendChild(videoContainer);
+        }
+
+        // Delete video from IndexedDB and UI
+        document.getElementById("videoList").addEventListener("click", function (event) {
+            if (event.target.classList.contains("delete-button")) {
+                const videoId = event.target.getAttribute("data-id");
+                deleteVideo(videoId);
+            }
+        });
+
+        // Delete video from IndexedDB and remove from both containers
+        function deleteVideo(videoId) {
+            const transaction = db.transaction(['videos'], 'readwrite');
+            const store = transaction.objectStore('videos');
+            const request = store.delete(videoId);
+
+            request.onsuccess = function () {
+                // Remove from both videoList and currentItemContainer
+                document.querySelectorAll(`[data-id='${videoId}']`).forEach(container => container.remove());
+            };
+
+            request.onerror = function () {
+                console.error("Error deleting video");
+            };
+        }
+
+        // Load videos on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            loadVideosFromDB();
+        });
+    </script>
+</body>
+</html>

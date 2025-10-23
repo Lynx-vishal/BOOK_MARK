@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Images and Videos with Timestamps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #previewContainer, #videoList {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .image-container, .video-container, .current-item-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        img, video {
+            width: 200px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .delete-btn, .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 24px;
+            text-align: center;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: gray;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 20px auto;
+        }
+        #currentItemContainer {
+            border: 2px solid #000;
+            padding: 10px;
+            width: 90%;
+            background-color: #f9f9f9;
+        }
+        .date-separator {
+            width: 100%;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Images and Videos with Timestamps</h1>
+    <input type="file" id="myFileInput" multiple accept="image/*,video/*">
+    <h2>Current Item (Visible for 5 minutes):</h2>
+    <div id="currentItemContainer"></div>
+    <h2>Image Previews:</h2>
+    <div id="previewContainer"></div>
+    <h2>Video Previews:</h2>
+    <div id="videoList"></div>
+
+    <script>
+        let lastUploadDate = "";
+
+        // Helper function to generate a unique key for images
+        function generateUniqueKey() {
+            return Date.now() + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Helper function to save image to localStorage with key and timestamp
+        function saveImageToLocalStorage(imageKey, imageData, timestamp) {
+            try {
+                const imageInfo = { imageData, timestamp, imageKey };
+                localStorage.setItem(`recent-image-${imageKey}`, JSON.stringify(imageInfo));
+            } catch (e) {
+                console.error("Error saving image to localStorage", e);
+            }
+        }
+
+        // Helper function to display image preview
+        function displayImagePreview(imageKey, imageUrl, timestamp) {
+            const previewContainer = document.querySelector("#previewContainer");
+            const uploadDate = new Date(timestamp).toLocaleDateString();
+
+            // Add a date separator if this image is from a new day
+            if (lastUploadDate !== uploadDate) {
+                addDateSeparator(previewContainer, uploadDate);
+                lastUploadDate = uploadDate;
+            }
+
+            const imageContainer = document.createElement("div");
+            imageContainer.classList.add("image-container");
+            imageContainer.dataset.key = imageKey; // Store the imageKey in the container
+
+            const imagePreview = document.createElement("img");
+            imagePreview.setAttribute("src", imageUrl);
+            imagePreview.setAttribute("alt", "Image preview");
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.classList.add("delete-btn");
+            deleteBtn.innerText = "X";
+            deleteBtn.addEventListener("click", () => {
+                deleteImage(imageKey);
+            });
+
+            const timeStampDiv = document.createElement("div");
+            timeStampDiv.classList.add("timestamp");
+            timeStampDiv.innerText = `Uploaded on: ${timestamp}`;
+
+            imageContainer.appendChild(imagePreview);
+            imageContainer.appendChild(timeStampDiv);
+            imageContainer.appendChild(deleteBtn);
+            previewContainer.appendChild(imageContainer);
+        }
+
+        // Delete image function - deletes from both containers and localStorage
+        function deleteImage(imageKey) {
+            // Remove from localStorage
+            localStorage.removeItem(`recent-image-${imageKey}`);
+
+            // Remove from both containers (preview and current)
+            document.querySelectorAll(`[data-key='${imageKey}']`).forEach(container => {
+                container.remove();
+            });
+
+            // Also remove from currentItems in localStorage
+            const currentItems = JSON.parse(localStorage.getItem("currentItems")) || [];
+            const updatedItems = currentItems.filter(item => item.imageKey !== imageKey);
+            localStorage.setItem("currentItems", JSON.stringify(updatedItems));
+        }
+
+        // Helper function to add a date separator
+        function addDateSeparator(container, date) {
+            const separator = document.createElement("div");
+            separator.classList.add("date-separator");
+            separator.innerText = `Uploaded on: ${date}`;
+            container.appendChild(separator);
+        }
+
+        // Load images from localStorage on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith("recent-image-")) {
+                    const { imageData, timestamp, imageKey } = JSON.parse(localStorage.getItem(key));
+                    displayImagePreview(imageKey, imageData, timestamp);
+                }
+            }
+            loadCurrentItems();
+        });
+
+        // Adding current items (images or videos) to the "currentItemContainer"
+        function addCurrentItem(type, data, imageKey, timestamp) {
+            const expiry = Date.now() + 300000; // 5 minutes in milliseconds
+            const currentItems = JSON.parse(localStorage.getItem("currentItems")) || [];
+            currentItems.push({ type, data, imageKey, timestamp, expiry });
+            localStorage.setItem("currentItems", JSON.stringify(currentItems));
+
+            if (type === "image") {
+                displayCurrentImage(imageKey, data, timestamp);
+            }
+        }
+
+        // Load current items from localStorage
+        function loadCurrentItems() {
+            const currentItems = JSON.parse(localStorage.getItem("currentItems")) || [];
+            const now = Date.now();
+            const filteredItems = currentItems.filter(item => item.expiry > now); // Keep only non-expired items
+
+            filteredItems.forEach(item => {
+                if (item.type === "image") {
+                    displayCurrentImage(item.imageKey, item.data, item.timestamp);
+                }
+            });
+
+            localStorage.setItem("currentItems", JSON.stringify(filteredItems)); // Update localStorage after filtering
+        }
+
+        // Display current image in the "currentItemContainer"
+        function displayCurrentImage(imageKey, imageData, timestamp) {
+            const currentItemContainer = document.querySelector("#currentItemContainer");
+            const imageContainer = document.createElement("div");
+            imageContainer.classList.add("current-item-container");
+            imageContainer.dataset.key = imageKey; // Store the imageKey in the container
+
+            const image = document.createElement("img");
+            image.src = imageData;
+            image.alt = "Current image";
+
+            const timestampDiv = document.createElement("div");
+            timestampDiv.classList.add("timestamp");
+            timestampDiv.innerText = `Uploaded on: ${timestamp}`;
+
+            // Create delete button for current item
+            const deleteBtn = document.createElement("button");
+            deleteBtn.classList.add("delete-button");
+            deleteBtn.innerText = "X";
+            deleteBtn.addEventListener("click", () => {
+                deleteImage(imageKey);
+            });
+
+            imageContainer.appendChild(image);
+            imageContainer.appendChild(timestampDiv);
+            imageContainer.appendChild(deleteBtn);
+            currentItemContainer.appendChild(imageContainer);
+        }
+
+        // Listen to file input change
+        document.querySelector("#myFileInput").addEventListener("change", (event) => {
+            const files = event.target.files;
+            const currentTime = new Date().toLocaleString();
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                const uniqueKey = generateUniqueKey(); // Generate a unique key for each file
+
+                reader.onload = (function(file) {
+                    return function(e) {
+                        if (file.type.startsWith("image/")) {
+                            // Save image and display it in both containers
+                            saveImageToLocalStorage(uniqueKey, e.target.result, currentTime);
+                            displayImagePreview(uniqueKey, e.target.result, currentTime);
+                            addCurrentItem("image", e.target.result, uniqueKey, currentTime);
+                        }
+                    };
+                })(file);
+
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+</body>
+</html>

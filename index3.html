@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Images and Videos with Timestamps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #previewContainer, #videoList {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .image-container, .video-container, .current-item-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        img, video {
+            width: 200px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .delete-btn, .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 24px;
+            text-align: center;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: gray;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 20px auto;
+        }
+        #currentItemContainer {
+            border: 2px solid #000;
+            padding: 10px;
+            width: 90%;
+            background-color: #f9f9f9;
+        }
+        /* Separator styles */
+        .date-separator {
+            width: 100%;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Images and Videos with Timestamps</h1>
+    <input type="file" id="myFileInput" multiple accept="image/*,video/*">
+    <h2>Current Item (Visible for 5 minutes):</h2>
+    <div id="currentItemContainer"></div>
+    <h2>Image Previews:</h2>
+    <div id="previewContainer"></div>
+    <h2>Video Previews:</h2>
+    <div id="videoList"></div>
+
+    <script>
+        const dbName = "videoStorage";
+        let db;
+        let lastUploadDate = "";
+
+        //  // Open or create IndexedDB
+        //  const request = indexedDB.open(dbName, 1);
+        // request.onupgradeneeded = function (event) {
+        //     db = event.target.result;
+        //     if (!db.objectStoreNames.contains('videos')) {
+        //         db.createObjectStore('videos', { keyPath: 'id' });
+        //     }
+        // };
+        // request.onsuccess = function (event) {
+        //     db = event.target.result;
+        //     loadVideosFromDB(); // Load existing videos when the database opens
+        // };
+        // request.onerror = function () {
+        //     console.error("IndexedDB error");
+        // };
+
+        // // Helper function to generate a unique key for images
+        // function generateImageKey() {
+        //     let totalImages = localStorage.getItem("imageCount");
+        //     return totalImages ? parseInt(totalImages) : 0;
+        // }
+
+        // Helper function to save image to localStorage with timestamp
+        function saveImageToLocalStorage(imageData, timestamp) {
+            const currentKey = generateImageKey(); // Get unique key for the new image
+            localStorage.setItem(`recent-image-${currentKey}`, JSON.stringify({ imageData, timestamp }));
+            localStorage.setItem("imageCount", currentKey + 1);
+        }
+
+        // Helper function to display image preview
+        function displayImagePreview(imageUrl, key, timestamp) {
+            const previewContainer = document.querySelector("#previewContainer");
+            const uploadDate = new Date(timestamp).toLocaleDateString();
+
+            // Add a date separator if this image is from a new day
+            if (lastUploadDate !== uploadDate) {
+                addDateSeparator(previewContainer, uploadDate);
+                lastUploadDate = uploadDate;
+            }
+
+
+            const imageContainer = document.createElement("div");
+            imageContainer.classList.add("image-container");
+
+            const imagePreview = document.createElement("img");
+            imagePreview.setAttribute("src", imageUrl);
+            imagePreview.setAttribute("alt", "Image preview");
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.classList.add("delete-btn");
+            deleteBtn.innerText = "X";
+            deleteBtn.addEventListener("click", () => {
+                deleteImage(key, imageContainer);
+            });
+
+            const timeStampDiv = document.createElement("div");
+            timeStampDiv.classList.add("timestamp");
+            timeStampDiv.innerText = `Uploaded on: ${timestamp}`;
+
+            imageContainer.appendChild(imagePreview);
+            imageContainer.appendChild(timeStampDiv);
+            imageContainer.appendChild(deleteBtn);
+            previewContainer.appendChild(imageContainer);
+        }
+
+        // Delete image function
+        function deleteImage(key, imageContainer) {
+            localStorage.removeItem(`recent-image-${key}`);
+            imageContainer.remove();
+        }
+
+        // // Helper function to display video preview with date separator
+        // function addVideoToUI(videoData) {
+        //     const videoList = document.getElementById("videoList");
+        //     const uploadDate = new Date(videoData.timestamp).toLocaleDateString();
+
+        //     // Add a date separator if this video is from a new day
+        //     if (lastUploadDate !== uploadDate) {
+        //         addDateSeparator(videoList, uploadDate);
+        //         lastUploadDate = uploadDate;
+        //     }
+
+        //     const videoContainer = document.createElement("div");
+        //     videoContainer.classList.add("video-container");
+
+        //     videoContainer.innerHTML = `
+        //         <video controls width="200" src="${videoData.data}"></video>
+        //         <p>${videoData.name}</p>
+        //         <div class="timestamp">Uploaded on: ${videoData.timestamp}</div>
+        //         <button class="delete-button" data-id="${videoData.id}">Delete</button>
+        //     `;
+
+        //     videoList.appendChild(videoContainer);
+        // }
+
+
+         // Helper function to add a date separator
+        function addDateSeparator(container, date) {
+            const separator = document.createElement("div");
+            separator.classList.add("date-separator");
+            separator.innerText = `Uploaded on: ${date}`;
+            container.appendChild(separator);
+        }
+
+        // Load images from localStorage on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            const totalImages = localStorage.getItem("imageCount");
+            if (totalImages) {
+                for (let i = 0; i < totalImages; i++) {
+                    const imageDataObj = localStorage.getItem(`recent-image-${i}`);
+                    if (imageDataObj) {
+                        const { imageData, timestamp } = JSON.parse(imageDataObj);
+                        displayImagePreview(imageData, i, timestamp);
+                    }
+                }
+            }
+
+            loadCurrentItems();
+        });
+
+        // Adding current items (images or videos) to the "currentItemContainer"
+        function addCurrentItem(type, data, timestamp) {
+            const expiry = Date.now() + 300000; // 5 minutes in milliseconds
+            const currentItems = JSON.parse(localStorage.getItem("currentItems")) || [];
+            currentItems.push({ type, data, timestamp, expiry });
+            localStorage.setItem("currentItems", JSON.stringify(currentItems));
+
+            if (type === "image") {
+                displayCurrentImage(data, timestamp);
+            // } else if (type === "video") {
+            //     displayCurrentVideo(data, timestamp);
+            }
+        }
+
+        // Load current items from localStorage
+        function loadCurrentItems() {
+            const currentItems = JSON.parse(localStorage.getItem("currentItems")) || [];
+            const now = Date.now();
+            const filteredItems = currentItems.filter(item => item.expiry > now); // Keep only non-expired items
+
+            filteredItems.forEach(item => {
+                if (item.type === "image") {
+                    displayCurrentImage(item.data, item.timestamp);
+                // } else if (item.type === "video") {
+                //     displayCurrentVideo(item.data, item.timestamp);
+                }
+            });
+
+            // Update localStorage with filtered (non-expired) items
+            localStorage.setItem("currentItems", JSON.stringify(filteredItems));
+        }
+
+        // Handle file input change event for both images and videos
+        document.querySelector("#myFileInput").addEventListener("change", function () {
+            const files = this.files;
+            const currentTime = new Date().toLocaleString();
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = function () {
+                    const uploadDate = new Date().toLocaleDateString();
+                    if (file.type.startsWith('image/')) {
+                        // For images, save to localStorage and display preview
+                        const currentKey = generateImageKey();
+                        displayImagePreview(reader.result, currentKey, currentTime);
+                        saveImageToLocalStorage(reader.result, currentTime);
+                        displayCurrentImage(reader.result, currentTime);
+                    // } else if (file.type.startsWith('video/')) {
+                    //     // For videos, save to IndexedDB and display preview
+                    //     const transaction = db.transaction(['videos'], 'readwrite');
+                    //     const store = transaction.objectStore('videos');
+
+                    //     const videoData = {
+                    //         id: `video-${Date.now() + i}`,
+                    //         data: reader.result,
+                    //         name: file.name,
+                    //         timestamp: currentTime
+                    //     };
+
+                    //     store.put(videoData);
+                    //     transaction.oncomplete = function () {
+                    //         addVideoToUI(videoData);
+                    //         displayCurrentVideo(videoData.data, videoData.timestamp);
+                    //     };
+                    //     transaction.onerror = function () {
+                    //         console.error("Error saving video");
+                    //     };
+                    }
+                };
+
+                reader.readAsDataURL(file);
+            }
+        });
+
+
+        // Helper function to display current image item in the 'currentItemContainer'
+        function displayCurrentImage(imageUrl, timestamp) {
+            const currentItemContainer = document.getElementById("currentItemContainer");
+            const Container = document.createElement("div");
+            Container.classList.add("current-item-container");
+
+            const imagePreview = document.createElement("img");
+            imagePreview.setAttribute("src", imageUrl);
+            imagePreview.setAttribute("alt", "Current Image");
+
+            const timeStampDiv = document.createElement("div");
+            timeStampDiv.classList.add("timestamp");
+            timeStampDiv.innerText = `Uploaded on: ${timestamp}`;
+
+            Container.appendChild(imagePreview);
+            Container.appendChild(timeStampDiv);
+            currentItemContainer.appendChild(Container);
+
+            // Set a timeout to remove the current item after 5 minutes
+            setTimeout(() => {
+                Container.remove();
+            }, 300000); // 5 minutes = 300000ms
+        }
+
+        
+        // // Load videos from IndexedDB and check for current items
+        // function loadVideosFromDB() {
+        //     const transaction = db.transaction(['videos'], 'readonly');
+        //     const store = transaction.objectStore('videos');
+        //     const request = store.openCursor();
+
+        //     request.onsuccess = function (event) {
+        //         const cursor = event.target.result;
+        //         if (cursor) {
+        //             const videoData = cursor.value;
+        //             const currentTime = new Date().getTime();
+        //             const videoUploadTime = new Date(videoData.timestamp).getTime();
+                    
+        //             // Check if video was uploaded less than 5 minutes ago (300000 milliseconds)
+        //             if ((currentTime - videoUploadTime) < 300000) {
+        //                 // Display video in the current item container
+        //                 displayCurrentVideo(videoData.data, videoData.timestamp);
+        //             }
+                    
+        //             // Display video in the regular video list
+        //             addVideoToUI(videoData);
+        //             cursor.continue();
+        //         }
+        //     };
+
+        //     request.onerror = function () {
+        //         console.error("Error retrieving videos");
+        //     };
+        // }
+
+        //  // Helper function to display current video item in the 'currentItemContainer'
+        // function displayCurrentVideo(videoUrl, timestamp) {
+        //     const currentItemContainer = document.getElementById("currentItemContainer");
+        //     const videoContainer = document.createElement("div");
+        //     videoContainer.classList.add("video-container");
+
+        //     const videoPreview = document.createElement("video");
+        //     videoPreview.setAttribute("src", videoUrl);
+        //     videoPreview.setAttribute("controls", "true");
+
+        //     const timeStampDiv = document.createElement("div");
+        //     timeStampDiv.classList.add("timestamp");
+        //     timeStampDiv.innerText = `Uploaded on: ${timestamp}`;
+
+        //     videoContainer.appendChild(videoPreview);
+        //     videoContainer.appendChild(timeStampDiv);
+        //     currentItemContainer.appendChild(videoContainer);
+
+        //     // Remove current item after 5 minutes
+        //     setTimeout(() => {
+        //         videoContainer.remove();
+        //     }, 300000); // 5 minutes = 300000ms
+        // }
+
+
+    //    // Helper function to add a video to the UI
+    //    function addVideoToUI(videoData) {
+    //         const videoList = document.getElementById("videoList");
+    //         const videoContainer = document.createElement("div");
+    //         videoContainer.classList.add("video-container");
+
+    //         videoContainer.innerHTML = `
+    //             <video controls width="200" src="${videoData.data}"></video>
+    //             <p>${videoData.name}</p>
+    //             <div class="timestamp">Uploaded on: ${videoData.timestamp}</div>
+    //             <button class="delete-button" data-id="${videoData.id}">Delete</button>
+    //         `;
+
+    //         videoList.appendChild(videoContainer);
+    //     }
+
+        // // Delegate the click event for delete buttons to avoid page refresh
+        // document.getElementById("videoList").addEventListener("click", function (event) {
+        //     if (event.target.classList.contains("delete-button")) {
+        //         const videoId = event.target.getAttribute("data-id");
+        //         deleteVideo(videoId);
+        //     }
+        // });
+
+        //  // Delete video from IndexedDB and UI
+        //  document.getElementById("videoList").addEventListener("click", function (event) {
+        //     if (event.target.classList.contains("delete-button")) {
+        //         const videoId = event.target.getAttribute("data-id");
+        //         deleteVideo(videoId);
+        //     }
+        // });
+
+        // // Delete video from IndexedDB
+        // function deleteVideo(videoId) {
+        //     const transaction = db.transaction(['videos'], 'readwrite');
+        //     const store = transaction.objectStore('videos');
+        //     const request = store.delete(videoId);
+
+        //     request.onsuccess = function () {
+        //         const videoContainer = document.querySelector(`.delete-button[data-id='${videoId}']`).parentNode;
+        //         videoContainer.remove();
+        //     };
+
+        //     request.onerror = function () {
+        //         console.error("Error deleting video");
+        //     };
+        // }
+
+        // // Load videos on page load
+        // document.addEventListener("DOMContentLoaded", () => {
+        //     loadVideosFromDB();
+        // });
+    </script>
+</body>
+</html>

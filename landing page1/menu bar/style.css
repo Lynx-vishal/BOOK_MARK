@@ -1,0 +1,528 @@
+:root{
+    --color-accent: #322c26;
+    --color-background: #ab3429;
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,body {
+    width: 100%;
+    height: 100%;
+    /* overflow: hidden; */
+    font-family: sans-serif;
+    background: #000;
+    /* background: #fff; */
+}
+
+/* here onwards first page */
+
+
+
+.first-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--color-background);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* The `.overlay` class is styling an overlay element in the CSS. Here's what each property is doing: */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* .overlay-content {
+    width: 80%;
+} */
+
+.text {
+    position: relative;
+    margin: 1em 0;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+    color: var(--color-accent);
+}
+
+.counter p{
+    font-size: 100px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.counter p {
+    line-height: 100%;
+}
+
+.counter p span{
+    position: relative;
+    display: inline-block;  
+    z-index: -2;
+    color: var(--color-accent);
+} 
+
+video,
+img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-container,
+.img-container {
+    position: absolute;
+    width: 700px;
+    height: 500px;
+    transform: translateY(-50%);
+    pointer-events: none;
+}  
+
+/* from here second page */
+
+.container  {
+    /* color: #000; */
+    font-family: sans-serif;
+    font-size: 11px;
+    font-weight: 300;
+    text-transform: uppercase;
+}
+
+.hero {
+    position: absolute;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: url(bookmark\ wordmark.jpeg) no-repeat 50% 50%;
+    background-size: cover;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.hero .header {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: 0.5em;
+}
+
+/* sup {
+    position: relative;
+    top: 0.25em;
+    color: #2b72af;
+    font-size: 3vw;
+} */
+
+.hero h1 {
+    color: #2b72af;
+    font-size: 12vw;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.024em;
+    line-height: 100%;
+}
+
+nav {
+    position: fixed;
+    top: 0;
+    padding: 1.5em 2em;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-self: center;
+    z-index: 1;
+}
+
+.logo {
+    width: 50px;
+}
+
+.menu-open,
+.menu-close {
+    cursor: pointer;
+}
+
+.menu {
+    position: fixed;
+    top: 0;
+    padding: 1.5em;
+    width: 100vw;
+    height: 100vh;
+    /* background: #101010; */
+    color: #fff;
+    display: flex;
+    gap: 1.5em;
+    overflow: hidden;
+    z-index: 2;
+    pointer-events: none;
+    clip-path: polygon(0% 100%, 100% 100%, 100% 100%, 0% 100%);
+}
+
+.menu-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 2em;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.menu-img {
+    position: relative;
+    flex: 3;
+    overflow: hidden;
+}
+
+.menu-items {
+    position: relative;
+    top: 0px;
+    flex: 1;
+    padding: 3em;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: -1;
+}
+
+.menu-img img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#img-1 {
+    opacity: 0.9;
+}
+
+#img-2 {
+    opacity: 0.7;
+}
+
+#img-3 {
+    opacity: 0.5;
+}
+
+#img-4 {
+    opacity: 0.3;
+}
+
+/* .menu-logo {
+    width: 69px;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+} */
+
+/* .menu-logo img {
+    position: relative;
+} */
+
+
+/* .menu-link p {
+    position: relative;
+    font-family: sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+} */
+
+/* .menu-link a{
+    text-decoration: none;
+    color: #fff;
+} */
+
+/* .menu-footer {
+    width: 100%;
+    display: flex;
+} */
+
+/* .menu-sub-col {
+    flex: 1;
+} */
+
+/* .menu-sub-item p {
+    position: relative;
+} */
+/* important */
+/* .menu-link,
+.menu-sub-item {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+} */
+
+/* second menu */
+a,
+p,
+span {
+    text-transform: uppercase;
+    font-size: 10px;
+    line-height: 100%;
+    cursor: pointer;
+}
+
+/* nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2em;
+    z-index: 2;
+} */
+
+/* .container {
+    width: 100%;
+    height: 100%;
+} */
+
+/* .menu-container {
+    position: fixed;
+    top: 50%;
+    left: -50%;
+    transform: translateY(-50%);
+    padding: 1.5em;
+    width: 45%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2;
+    transition: left 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+} */
+
+.second-menu {
+    width: 100%;
+    height: 100%;
+    /* background-color: #000; */
+    color: #fff;
+    border-radius: 20px;
+    display: flex;
+    overflow: hidden;
+}
+
+.menu-main {
+    flex: 5;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* border-right: 1px solid rgba(255, 255, 255, 0.125); */
+}
+
+/* .menu-sidebar {
+    flex: 0.2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+} */
+
+.menu-main .menu-top {
+    display: flex;
+    /* border-top: 1px solid rgba(255, 255, 255, 0.125); */
+}
+
+.menu-main .menu-bottom {
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-top-title {
+    flex: 1;
+    padding: 2em;
+}
+
+.menu-top-content {
+    padding: 1.25em 0;
+    flex: 4;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu-item {
+    position: relative;
+    left: -100px;
+    padding: 0.5em 0;
+    transition: left 0.3s;
+}
+
+.menu-item-link {
+    position: relative;
+}
+
+.menu-item-link a {
+    position: relative;
+    text-decoration: none;
+    color: #fff;
+    font-size: 48px;
+    font-family: sans-serif;
+    letter-spacing: -2px;
+    font-weight: bold;
+    padding-left: 10px;
+    z-index: 2;
+}
+
+.menu-item#active .menu-item-link a {
+    color: #000;
+}
+
+.menu-item:hover .menu-item-link a {
+    color: #000;
+}
+
+.bg-hover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #fff;
+    clip-path: polygon(0 0, 100% 0, 100% 80%, 95% 100%, 0 100%, 0 50%);
+    z-index: 0;
+    opacity: 0;
+}
+
+.menu-item:hover .bg-hover {
+    opacity: 1;
+}
+
+.menu-item#active .bg-hover {
+    background-color: aquamarine;
+    opacity: 1;
+}
+
+.menu-item span {
+    position: absolute;
+    top: 0px;
+    padding: 1.5em 0;
+}
+
+.menu-item span .word .char {
+    color: #000;
+}
+
+.menu-item#active span .word .char {
+    color: #fff;
+}
+
+.menu-item:hover span .word .char .char-active {
+    color: #fff;
+}
+
+.menu-item span .word .char .char-active {
+    color: #000;
+}
+
+.menu-sub-item {
+    width: 100%;
+    display: flex;
+    gap: 1em;
+    border-top: 1px solid rgba(255, 255, 255, 0.125);
+    padding: 1em 2em;
+}
+
+.menu-title {
+    flex: 1;
+}
+
+.menu-content {
+    flex: 4;
+    padding-left: 2em;
+}
+
+.menu-content p {
+    position: relative;
+    width: max-content;
+    padding: 0.125em;
+}
+
+.menu-content p::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 100%;
+    background: #fff;
+    mix-blend-mode: difference;
+}
+
+@keyframes hoverEffect {
+    0%, 100% {
+        width: 0%;
+        left: 0;
+    }
+    50% {
+        width: 100%;
+        left: 0;
+    }
+
+    51% {
+        left: auto;
+        right: 0;
+        width: 100%;
+    }
+
+    100% {
+        left: auto;
+        right: 0;
+        width: 0%;
+    }
+}
+
+.menu-content p::after {
+    animation: hoverEffect 1s ease forwards;
+}
+
+/* .close-btn,
+.logo {
+    padding: 1.5em;
+} */
+
+/* .close-btn {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.125);
+    cursor: pointer;
+} */
+
+@media(max-width:900px){
+    .overlay-content{
+        width: 95%;
+    }
+    .counter p{
+        font-size: 100px;
+    }
+    .menu-img {
+        display: none;
+    }
+    
+    /* .menu-container {
+        width: 100%;
+    }
+
+    .menu-top-content {
+        padding: 1.5em;
+    }
+
+    .menu-top-title,
+    .menu-item span,
+    .menu-title {
+        display: none;
+    }
+
+    .menu-item:hover .menu-item-link a {
+        color: #fff;
+    } */
+   
+}

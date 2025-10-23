@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Images and Videos with Timestamps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #previewContainer, #videoList {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .image-container, .video-container, .bin-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        img, video {
+            width: 200px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .delete-btn, .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 24px;
+            text-align: center;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: gray;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 20px auto;
+        }
+        #binContainer {
+            border: 2px solid #000;
+            padding: 10px;
+            width: 90%;
+            background-color: #f9f9f9;
+        }
+        /* Separator styles */
+        .date-separator {
+            width: 100%;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Images and Videos with Timestamps</h1>
+    <input type="file" id="myFileInput" multiple accept="image/*,video/*">
+    
+    <h2>Bin (Visible for 5 minutes):</h2>
+    <div id="binContainer"></div>
+    
+    <h2>Image Previews:</h2>
+    <div id="previewContainer"></div>
+    
+    <h2>Video Previews:</h2>
+    <div id="videoList"></div>
+
+    <script>
+        const dbName = "videoStorage";
+        let db;
+        let lastUploadDate = "";
+
+        // Helper function to generate a unique key for images
+        function generateImageKey() {
+            let totalImages = localStorage.getItem("imageCount");
+            return totalImages ? parseInt(totalImages) : 0;
+        }
+
+        // Helper function to save image to localStorage with timestamp
+        function saveImageToLocalStorage(imageData, timestamp) {
+            const currentKey = generateImageKey();
+            localStorage.setItem(`recent-image-${currentKey}`, JSON.stringify({ imageData, timestamp }));
+            localStorage.setItem("imageCount", currentKey + 1);
+        }
+
+        // Helper function to display image preview
+        function displayImagePreview(imageUrl, key, timestamp) {
+            const previewContainer = document.querySelector("#previewContainer");
+            const uploadDate = new Date(timestamp).toLocaleDateString();
+
+            // Add a date separator if this image is from a new day
+            if (lastUploadDate !== uploadDate) {
+                addDateSeparator(previewContainer, uploadDate);
+                lastUploadDate = uploadDate;
+            }
+
+            const imageContainer = document.createElement("div");
+            imageContainer.classList.add("image-container");
+
+            const imagePreview = document.createElement("img");
+            imagePreview.setAttribute("src", imageUrl);
+            imagePreview.setAttribute("alt", "Image preview");
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.classList.add("delete-btn");
+            deleteBtn.innerText = "X";
+            deleteBtn.addEventListener("click", () => {
+                deleteImage(key, imageContainer);
+            });
+
+            const timeStampDiv = document.createElement("div");
+            timeStampDiv.classList.add("timestamp");
+            timeStampDiv.innerText = `Uploaded on: ${timestamp}`;
+
+            imageContainer.appendChild(imagePreview);
+            imageContainer.appendChild(timeStampDiv);
+            imageContainer.appendChild(deleteBtn);
+            previewContainer.appendChild(imageContainer);
+        }
+
+        // Delete image function
+        function deleteImage(key, imageContainer) {
+            const timestamp = new Date().toLocaleString();
+            const imageUrl = imageContainer.querySelector('img').src;
+
+            localStorage.removeItem(`recent-image-${key}`);
+            imageContainer.remove();
+            
+            // Add the deleted image to the bin
+            addBinItem("image", imageUrl, timestamp);
+        }
+
+        // Helper function to add item to the Bin
+        function addBinItem(type, data, timestamp) {
+            const expiry = Date.now() + 300000; // 5 minutes in milliseconds
+            const binItems = JSON.parse(localStorage.getItem("binItems")) || [];
+            binItems.push({ type, data, timestamp, expiry });
+            localStorage.setItem("binItems", JSON.stringify(binItems));
+
+            if (type === "image") {
+                displayBinImage(data, timestamp);
+            }
+        }
+
+        // Helper function to display bin image in the 'binContainer'
+        function displayBinImage(imageUrl, timestamp) {
+            const binContainer = document.getElementById("binContainer");
+            const Container = document.createElement("div");
+            Container.classList.add("bin-container");
+
+            const imagePreview = document.createElement("img");
+            imagePreview.setAttribute("src", imageUrl);
+            imagePreview.setAttribute("alt", "Bin Image");
+
+            const timeStampDiv = document.createElement("div");
+            timeStampDiv.classList.add("timestamp");
+            timeStampDiv.innerText = `Deleted on: ${timestamp}`;
+
+            const restoreBtn = document.createElement("button");
+            restoreBtn.innerText = "Restore";
+            restoreBtn.addEventListener("click", () => {
+                restoreBinItem(imageUrl, Container);
+            });
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.innerText = "Delete";
+            deleteBtn.addEventListener("click", () => {
+                Container.remove();
+                // Optionally remove from localStorage if permanently deleted
+                removeBinItem(imageUrl);
+            });
+
+            Container.appendChild(imagePreview);
+            Container.appendChild(timeStampDiv);
+            Container.appendChild(restoreBtn);
+            Container.appendChild(deleteBtn);
+            binContainer.appendChild(Container);
+
+            // Set a timeout to remove the item after 5 minutes
+            setTimeout(() => {
+                Container.remove();
+                removeBinItem(imageUrl);
+            }, 300000); // 5 minutes = 300000ms
+        }
+
+        // Restore image from the bin
+        function restoreBinItem(imageUrl, binContainer) {
+            const currentTime = new Date().toLocaleString();
+            binContainer.remove();
+
+            // Re-add image to the preview container
+            const currentKey = generateImageKey();
+            displayImagePreview(imageUrl, currentKey, currentTime);
+            saveImageToLocalStorage(imageUrl, currentTime);
+
+            // Optionally remove from binItems in localStorage
+            removeBinItem(imageUrl);
+        }
+
+        // Remove bin item from localStorage
+        function removeBinItem(imageUrl) {
+            let binItems = JSON.parse(localStorage.getItem("binItems")) || [];
+            binItems = binItems.filter(item => item.data !== imageUrl);
+            localStorage.setItem("binItems", JSON.stringify(binItems));
+        }
+
+        // Load images from localStorage on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            const totalImages = localStorage.getItem("imageCount");
+            if (totalImages) {
+                for (let i = 0; i < totalImages; i++) {
+                    const imageDataObj = localStorage.getItem(`recent-image-${i}`);
+                    if (imageDataObj) {
+                        const { imageData, timestamp } = JSON.parse(imageDataObj);
+                        displayImagePreview(imageData, i, timestamp);
+                    }
+                }
+            }
+
+            loadBinItems();
+        });
+
+        // Load bin items from localStorage
+        function loadBinItems() {
+            const binItems = JSON.parse(localStorage.getItem("binItems")) || [];
+            const now = Date.now();
+            const filteredItems = binItems.filter(item => item.expiry > now); // Keep only non-expired items
+
+            filteredItems.forEach(item => {
+                if (item.type === "image") {
+                    displayBinImage(item.data, item.timestamp);
+                }
+            });
+
+            // Update localStorage with filtered (non-expired) items
+            localStorage.setItem("binItems", JSON.stringify(filteredItems));
+        }
+
+        // Helper function to add a date separator
+        function addDateSeparator(container, date) {
+            const separator = document.createElement("div");
+            separator.classList.add("date-separator");
+            separator.innerText = `Uploaded on: ${date}`;
+            container.appendChild(separator);
+        }
+
+    </script>
+</body>
+</html>

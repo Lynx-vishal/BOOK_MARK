@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .header {
+            text-align: center;
+            padding: 15px;
+            border-bottom: 1px solid #ccc;
+            color: #666;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            overflow-y: auto;
+            padding: 10px;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+            vertical-align: bottom;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #f2f2f2;
+        }
+
+        .file-list {
+            margin-bottom: 10px;
+        }
+
+        .table-left {
+            width: 30%;
+            text-align: left;
+        }
+
+        .table-right {
+            width: 70%;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>File Manager</h1>
+        <p id="title">Enter your file manager title</p>
+    </div>
+
+    <table class="table-right file-list" id="files">
+        <tr>
+            <th></th>
+            <th>ID</th>
+            <th>NAME</th>
+            <th>SIZE (B)</th>
+            <th>Type</th>
+            <th>Modified Date</th>
+            <th>Last Updated</th>
+        </tr>
+    </table>
+
+    <table class="table-left file-list" id="properties">
+        <tr>
+            <th></th>
+            <th>ID</th>
+            <th>NAME</th>
+            <th>Type</th>
+            <th>Last Updated</th>
+            <th>Size (B)</th>
+            <th>Status</th>
+        </tr>
+    </table>
+
+    <script>
+        function addNewFile() {
+            const fileHeader = document.querySelector('.header');
+
+            if (fileHeader) {
+                // Create new row for files
+                const fileRow = document.createElement('div');
+                fileRow.innerHTML = `
+                    File name with size 500MB and type File.
+                    <br>Modified at: <span id="lastUpdated">Last Updated</span><br>
+                    <span id="modified">2023-10-01</span>;
+                `;
+
+                // Add new file header
+                fileHeader.innerHTML += '<hr class="line"></hr>';
+                fileRow.innerHTML += '</div>';
+                document.body.appendChild(fileRow);
+            }
+        }
+
+        function saveChanges() {
+            let fileHeaderId = null;
+
+            for (let i = 0; i < document.querySelectorAll('.file-header').length; i++) {
+                const header = document.querySelector(`[data-id="${i}"]`);
+                if (header) {
+                    header.innerHTML = '';
+                    fileHeaderId = i;
+                }
+            }
+
+            if (fileHeaderId !== null && 'name' in document.getElementById('title').elements) {
+                for (let header of document.querySelectorAll('.file-header')) {
+                    const element = header.querySelector('.name');
+                    // Update name
+                    let newName = element.textContent;
+                    document.getElementById('title').innerHTML = `
+                        <p>${newName}</p>
+                        ${header.innerHTML}
+                    `;
+                }
+
+                // Update file info based on type
+                if (header.querySelector('.type')) {
+                    const typeElement = header.querySelector('.type');
+                    for (let i = 0; i < document.querySelectorAll('.file-header').length; i++) {
+                        const element = document.querySelector(`[data-id="${i}"]`);
+                        const currentType = element.querySelector('.type').textContent;
+                        let newStatus = 'Ready';
+
+                        if (currentType === 'File') {
+                            newStatus = header.querySelector('.status').textContent;
+                        } else {
+                            newStatus = header.querySelector('.lastUpdated').textContent;
+                        }
+
+                        for (let name of currentType) {
+                            const statusElement = element.querySelector(`[data-id="${name}"]`);
+                            if (statusElement) {
+                                statusElement.textContent = newStatus;
+                            }
+                        }
+
+                        // Update properties table
+                        for (let property of header.querySelector('.properties')) {
+                            let updatedProperty = property.textContent;
+
+                            const updatedHeaderId = document.querySelectorAll('.property').length;
+                            for (let propId = 0; propId < updatedHeaderId; propId++) {
+                                if (updatedProperty === document.querySelector(`[data-id="${propId}"]`)) {
+                                    let newStatusProp = 'Ready';
+                                    const statusPropElement = element.querySelector(`[data-id="${propId}"]`);
+                                    for (let name of currentType) {
+                                        let propText = property.textContent;
+                                        if (propText === name && updatedProperty === currentType) {
+                                            propText = newStatus;
+                                        }
+                                        propText += ' ' + propText.replace(/[^a-zA-Z]/g, '');
+                                        newStatusProp = propText;
+                                    }
+                                    statusPropElement.textContent = newStatusProp;
+                                } else {
+                                    if (property.textContent && property.updatedDate && property.status) {
+                                        updateProperty(newStatus);
+                                    }
+                                }
+                            }
+
+                            // Update file header
+                            header.innerHTML += `<div class="file-info" data-id="${name}"></div>`;
+                        }
+                    }
+                }
+                break; // Exit loop once a file is modified
+            } else if (fileHeaderId !== null) {
+                for (let i = 0; i < document.querySelectorAll('.file-header').length; i++) {
+                    const header = document.querySelector(`[data-id="${i}"]`);
+                    if (header) {
+                        if (header.querySelector('.name')) {
+                            let newName = header.querySelector('.name').textContent;
+                            document.getElementById('title').innerHTML = ` <p>${newName}</p> `;
+                            for (let name of currentType) {
+                                let statusText = header.querySelector(`[data-id="${name}"]`).textContent;
+                                if (statusText === 'Ready') {
+                                    statusText = newStatus;
+                                }
+                                header.innerHTML += `<div class="file-info" data-id="${name}" text-content="${statusText}" data-type="${currentType}" data-old_status="${oldStatus}" data-updatedDate="${updatedDate}" data-modifiedDate="${newModifiedDate}"></div>`;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        function updateProperty(newName, currentType, statusText, newModifiedDate, oldModifiedDate) {
+            const properties = document.querySelector('.properties');
+
+            for (let propId = 0; propId < properties.length; propId++) {
+                if (properties[propId].textContent === newName &&
+                    currentType === 'File' ||
+                    properties[propId].status === statusText &&
+                    currentType === 'File') {
+                    properties[propId].textContent = newName;
+                }
+            }
+        }
+
+        function updateLastUpdated() {
+            const lastUpdatedContainer = document.querySelector('.lastUpdated');
+            lastUpdatedContainer.textContent = newModifiedDate;
+        }
+
+        function updateModified() {
+            // Update format
+            const modifiedDateElement = document.querySelector('.modified');
+            modifiedDateElement.textContent = '2023-10-01';
+
+            let dateFormat = 'MM-dd-yyyy';
+            for (let i = 0; i < newModifiedDate - 2023 && i < properties.length; i++) {
+                const format = `MM-dd-yyyy${i}`;
+                const propId = props.find(`.properties[data-old_status="${format}"]`);
+                if (propId) {
+                    document.body.insertBefore(propId, `${format}`, newModifiedDate);
+                }
+            }
+        }
+
+        addNewFile();
+    </script>
+</body>
+</html>

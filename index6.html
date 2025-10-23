@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videos with Time Limit</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #binContainer {
+            border: 2px solid #000;
+            padding: 10px;
+            width: 90%;
+            background-color: #f9f9f9;
+            margin-top: 20px;
+        }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        video {
+            width: 200px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .timestamp {
+            font-size: 12px;
+            color: gray;
+            text-align: center;
+        }
+        .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 24px;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 20px auto;
+        }
+        #videoList {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .date-separator {
+            width: 100%;
+            text-align: center;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Videos with 5-Minute Time Limit</h1>
+    <input type="file" id="myFileInput" multiple accept="video/mp4">
+    
+    <h2>Bin (Visible for 5 minutes):</h2>
+    <div id="binContainer"></div>
+
+    <h2>Video Previews:</h2>
+    <div id="videoList"></div>
+
+    <script>
+        const dbName = "videoStorage";
+        let db;
+        let lastUploadDate = null;
+        
+        // Open or create IndexedDB
+        const request = indexedDB.open(dbName, 1);
+        request.onupgradeneeded = function (event) {
+            db = event.target.result;
+            if (!db.objectStoreNames.contains('videos')) {
+                db.createObjectStore('videos', { keyPath: 'id' });
+            }
+        };
+        request.onsuccess = function (event) {
+            db = event.target.result;
+            loadVideosFromDB(); // Load existing videos when the database opens
+        };
+        request.onerror = function () {
+            console.error("IndexedDB error");
+        };
+
+        // Handle file input change event for videos
+        document.querySelector("#myFileInput").addEventListener("change", function () {
+            const files = this.files;
+            const currentTime = new Date().toLocaleString();
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = function () {
+                    if (file.type.startsWith('video/')) {
+                        const transaction = db.transaction(['videos'], 'readwrite');
+                        const store = transaction.objectStore('videos');
+
+                        const videoData = {
+                            id: `video-${Date.now() + i}`,
+                            data: reader.result,
+                            name: file.name,
+                            timestamp: currentTime,
+                            deleted: false // Initially, the video is not deleted
+                        };
+
+                        store.put(videoData);
+                        transaction.oncomplete = function () {
+                            addVideoToUI(videoData);
+                        };
+                        transaction.onerror = function () {
+                            console.error("Error saving video");
+                        };
+                    }
+                };
+
+                reader.readAsDataURL(file); // Read the video file as a Base64 string
+            }
+        });
+
+        // Helper function to add a video to the UI
+        function addVideoToUI(videoData) {
+            if (videoData.deleted) {
+                displayCurrentVideo(videoData.id, videoData.data, videoData.timestamp);
+            } else {
+                displayVideoInList(videoData);
+            }
+        }
+
+        // Display video in the video list
+        function displayVideoInList(videoData) {
+            const videoList = document.getElementById("videoList");
+            const videoDate = new Date(videoData.timestamp).toLocaleDateString();
+
+            if (lastUploadDate !== videoDate) {
+                const dateSeparator = document.createElement("div");
+                dateSeparator.classList.add("date-separator");
+                dateSeparator.innerText = `Uploaded on: ${videoDate}`;
+                videoList.appendChild(dateSeparator);
+                lastUploadDate = videoDate;
+            }
+
+            const videoContainer = document.createElement("div");
+            videoContainer.classList.add("video-container");
+            videoContainer.dataset.id = videoData.id;
+
+            videoContainer.innerHTML = `
+                <video controls width="200" src="${videoData.data}"></video>
+                <p>${videoData.name}</p>
+                <div class="timestamp">Uploaded on: ${videoData.timestamp}</div>
+                <button class="delete-button" data-id="${videoData.id}">Delete</button>
+            `;
+
+            videoList.appendChild(videoContainer);
+        }
+
+        // Display deleted video in bin container
+        function displayCurrentVideo(videoId, videoUrl, timestamp) {
+            const binContainer = document.getElementById("binContainer");
+            const videoContainer = document.createElement("div");
+            videoContainer.classList.add("video-container");
+            videoContainer.dataset.id = videoId;
+
+            videoContainer.innerHTML = `
+                <video controls width="200" src="${videoUrl}"></video>
+                <div class="timestamp">Uploaded on: ${timestamp}</div>
+                <button class="restore-button" data-id="${videoId}">Restore</button>
+                <button class="delete-button" data-id="${videoId}">Delete</button>
+            `;
+
+            binContainer.appendChild(videoContainer);
+
+            // Set timer for auto-delete after 5 minutes
+            setTimeout(() => {
+                const videoElem = document.querySelector(`[data-id='${videoId}']`);
+                if (videoElem) {
+                    permanentlyDeleteVideo(videoId);
+                    videoElem.remove();
+                }
+            }, 300000); // 5 minutes
+        }
+
+        // Load videos from IndexedDB
+        function loadVideosFromDB() {
+            const transaction = db.transaction(['videos'], 'readonly');
+            const store = transaction.objectStore('videos');
+            const request = store.openCursor();
+
+            request.onsuccess = function (event) {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const videoData = cursor.value;
+                    addVideoToUI(videoData);
+                    cursor.continue();
+                }
+            };
+
+            request.onerror = function () {
+                console.error("Error retrieving videos");
+            };
+        }
+
+        // Delete video from IndexedDB
+        document.getElementById("videoList").addEventListener("click", function (event) {
+            if (event.target.classList.contains("delete-button")) {
+                const videoId = event.target.getAttribute("data-id");
+                markVideoAsDeleted(videoId);
+            }
+        });
+
+        // Restore video from bin to video list
+        document.getElementById("binContainer").addEventListener("click", function (event) {
+            if (event.target.classList.contains("restore-button")) {
+                const videoId = event.target.getAttribute("data-id");
+                restoreVideo(videoId);
+            } else if (event.target.classList.contains("delete-button")) {
+                const videoId = event.target.getAttribute("data-id");
+                permanentlyDeleteVideo(videoId);
+            }
+        });
+
+        // Mark video as deleted and move it to bin
+        function markVideoAsDeleted(videoId) {
+            const transaction = db.transaction(['videos'], 'readwrite');
+            const store = transaction.objectStore('videos');
+            const request = store.get(videoId);
+
+            request.onsuccess = function () {
+                const videoData = request.result;
+                videoData.deleted = true;
+                store.put(videoData);
+
+                document.querySelectorAll(`[data-id='${videoId}']`).forEach(elem => elem.remove());
+                displayCurrentVideo(videoId, videoData.data, videoData.timestamp);
+            };
+        }
+
+        // Restore video and move it back to video list
+        function restoreVideo(videoId) {
+            const transaction = db.transaction(['videos'], 'readwrite');
+            const store = transaction.objectStore('videos');
+            const request = store.get(videoId);
+
+            request.onsuccess = function () {
+                const videoData = request.result;
+                videoData.deleted = false;
+                store.put(videoData);
+
+                document.querySelectorAll(`[data-id='${videoId}']`).forEach(elem => elem.remove());
+                displayVideoInList(videoData);
+            };
+        }
+
+        // Permanently delete video from IndexedDB
+        function permanentlyDeleteVideo(videoId) {
+            const transaction = db.transaction(['videos'], 'readwrite');
+            const store = transaction.objectStore('videos');
+            const request = store.delete(videoId);
+
+            request.onsuccess = function () {
+                document.querySelectorAll(`[data-id='${videoId}']`).forEach(elem => elem.remove());
+            };
+            request.onerror = function () {
+                console.error("Error deleting video");
+            };
+        }
+
+        // Load videos on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            loadVideosFromDB();
+        });
+    </script>
+</body>
+</html>
